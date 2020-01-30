@@ -1,0 +1,56 @@
+---
+title: "HW1"
+author: "jy"
+date: "2018년 9월 12일"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(gridExtra)
+library(tidyverse)
+library(dplyr)
+```
+
+
+
+## HW 1 
+
+```{r cars}
+trial <- read_csv("C:/Users/jeeyeon/Desktop/data/ex3-1.csv")
+trial_A <- trial %>% filter(TRT == "A"); trial_A
+trial_B <- trial %>% filter(TRT == "B"); trial_B
+
+hist(trial_A$SCORE)
+
+#1
+ggplot(data = trial_A, aes(SCORE))+geom_histogram()
+boxplot(trial_A$SCORE,horizontal = TRUE , main = "TRT A _ SCORE")
+
+ggplot(aes(y = SCORE, x = TRT), data = trial) + geom_boxplot()
+
+
+t.test(trial_A$SCORE,mu = 20 ,alternative ="less")
+
+```
+
+```{r}
+
+#2
+trial <- trial %>% mutate(center_c = as.factor(CENTER) )
+
+t.test(trial$SCORE[trial$TRT == 'A'],trial$SCORE[trial$TRT == 'B'])
+
+anova(lm( SCORE ~ TRT, data = trial))
+#alpha = 0.05 -> Ho reject (Ho accept)
+
+anova(lm( SCORE ~ TRT*center_c, data = trial))
+#alpha = 0.05 -> Ho do not reject (H1 accept)
+
+anova(lm( SCORE ~ TRT + center_c, data = trial))
+#alpha = 0.05 -> Trt : Ho reject(H1 accept)
+#alpha = 0.05 -> Center :Ho do not reject(Ho accpet)
+
+
+```
+

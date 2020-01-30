@@ -1,0 +1,139 @@
+---
+title: "hw5"
+author: "jy"
+date: "2018년 11월 1일"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(gridExtra)
+library(tidyverse)
+library(dplyr)
+library(HH)
+library(lsmeans)
+
+```
+
+## R Markdown
+
+# 1
+
+```{r }
+trial <- read_csv("C:/Users/jeeyeon/Desktop/data/ex3-1.csv")
+
+mylm1 = lm(SCORE ~ AGE , data = trial)
+summary(mylm1)
+anova(mylm1)
+
+observed = trial$SCORE
+predicted = fitted(mylm1)
+residual = residuals(mylm1)
+CI = predict(mylm1, interval = "confidence", levels = 0.95)
+
+# cbind(observed, predicted, residual, CI)
+
+```
+
+age, score 간에 선형관계가 없다
+
+
+
+# 2
+
+```{r}
+
+# ANCOVA : numeric - covariate, factor - trt ( 관심있는 것 )   -> y 예측
+
+trial = read_csv("C:/Users/jeeyeon/Desktop/data/ex3-1.csv")
+
+tapply(trial$SCORE, trial$TRT, mean)
+tapply(trial$SCORE, trial$TRT, sd)
+tapply(trial$SCORE, trial$TRT, length)
+
+
+mylm2 = lm(SCORE ~ AGE + TRT , data = trial)
+summary(mylm2)
+anova(mylm2)
+
+
+ggplot(trial , aes(x = TRT , y = SCORE)) + geom_jitter(width = 0.25)
+ggplot(trial , aes(x = TRT , y = SCORE)) + geom_boxplot()
+# 그룹별로 다른 회귀선
+ggplot(trial , aes(x = AGE , y = SCORE, color = TRT)) + geom_point() + geom_smooth(method=lm, se=FALSE, fullrange=TRUE)
+
+
+## ANCOVA ftn
+trial = trial %>% mutate(TRT = as.factor(TRT))
+ancova(SCORE ~ TRT + AGE, data=trial)
+
+mod <- ancova(SCORE ~ TRT + AGE, data=trial)
+pred <- predict(mod)
+
+
+ggplot(trial, aes(AGE, SCORE)) + geom_point() + facet_grid(. ~ TRT) + stat_smooth(method="lm")
+
+ggplot(trial,
+       aes(AGE, SCORE, color=TRT)) + geom_point() +
+  facet_grid(. ~ TRT) + geom_line(aes(y=pred))
+
+
+
+
+
+
+
+
+
+
+
+```
+
+TRTB pvalue < 0.05 따라서 trt 별로 age - score 의 서로 다른 회귀선이 나옴 따라서 서로 intercept 다름 
+trtA : y= 7.2035 + 0.4452AGE
+trtB : y= (7.2035+12.7276) + 0.4452AGE
+
+
+# 3
+```{r}
+
+
+mylm3 = lm(SCORE ~ AGE * TRT, data =trial)
+summary(mylm3)
+anova(mylm3)
+
+## ANCOVA ftn
+trial = trial %>% mutate(TRT = as.factor(TRT))
+ancova(SCORE ~ TRT * AGE, data=trial)
+
+
+
+```
+
+TRTA : y=7.54548 + 0.43739 * AGE
+TRTB : y=(7.54548+12.00917) + (0.43739+0.01693)* AGE
+
+2번에서 둘 intercept 다름을 보였고 기울기도 다른지 보기위해서 교호효과 넣어서 살펴본 결과 
+
+
+# 4
+
+```{r}
+
+mylm4 = lm(SCORE ~ AGE + TRT + CENTER , data = trial)
+summary(mylm4)
+anova(mylm4)
+# ancova(SCORE ~ TRT + AGE + CENTER , data=trial)
+# ancova는 사용할 수 없음 !!!! ㅠㅠㅠㅠ factor 1 , numeric 1일때만 사용 가능한듯 ? ? 
+
+lsmeans(mylm4, ~TRT)
+
+
+```
+
+
+
+
+
+
+
