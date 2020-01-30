@@ -1,0 +1,371 @@
+---
+title: "HW4"
+author: "jy"
+date: "2019년 4월 8일"
+output: html_document
+---
+
+### Lab
+
+# 4.6.1 The Shock Market Data
+
+```{r setup}
+library(ISLR)
+library(tidyverse)
+```
+
+
+```{r }
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+
+# cor(Smarket) # error! 'x' must be numeric
+cor(select_if(Smarket, is.numeric))
+
+attach(Smarket)
+plot(Volume)
+
+```
+
+# 4.6.2 Logistic Regression
+
+```{r }
+
+glm.fit = glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = Smarket, family = binomial)
+summary(glm.fit)
+coef(glm.fit)
+summary(glm.fit)$coef
+
+glm.probs = predict(glm.fit, type = "response") # P(Y=1|X) 
+glm.probs[1:10]
+contrasts(Direction) # create a dummy variable with a 1 for Up ! 할당된 값 보여주기 위해 사용 
+
+#Create a vector of class predictions based on whether the predicted probability of a market increase is greater than or less than 0.5
+glm.pred = rep("Down", 1250) # 일단 깔아놓고 
+glm.pred[glm.probs >.5] = "Up" # 확률값에 따라서 Up 값을 줌 
+
+table(glm.pred, Direction)
+(507+145)/ (141+457+507+145)
+mean(glm.pred ==Direction)
+
+
+```
+
+train vs test 
+```{r }
+train = (Year < 2005)
+Smarket.2005 = Smarket[!train,]
+dim(Smarket.2005)
+Direction.2005 = Direction[!train]
+
+glm.fit = glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, 
+              data = Smarket, family = binomial, subset = train)
+glm.probs = predict(glm.fit, Smarket.2005, type = "response")
+
+glm.pred = rep("Down", 252) # 일단 깔아놓고 
+glm.pred[glm.probs >.5] = "Up" # 확률값에 따라서 Up 값을 줌 
+
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005)
+mean(glm.pred != Direction.2005) # test error rate 
+
+
+```
+```{r }
+
+glm.fit = glm(Direction ~ Lag1 + Lag2, data = Smarket, family = binomial, subset = train)
+glm.probs = predict(glm.fit, Smarket.2005, type = "response")
+
+# glm.pred = rep("Down", 252)
+# glm.pred[glm.probs >0.5] = "Up"
+# glm.pred
+glm.pred = ifelse(glm.probs >0.5, "Up", "Down")
+glm.pred
+
+table(glm.pred , Direction.2005)
+mean(glm.pred == Direction.2005) # 56 % 맞게 예측 
+35 / (35 + 35) # 감소로 예측한 것 중 실제 감소 - 50% 정확도 
+106 /(106 + 76)  # 증가로 예측한 것 중 실제 증가  - 58%정확도 
+
+predict(glm.fit, newdata = data.frame(Lag1 = c(1.2,1.5), Lag2 = c(1.1, -0.8)), type = "response")
+
+
+
+
+```
+
+
+# 4.6.3 Linear Discriminant Analysis 
+
+```{r }
+library(MASS)
+lda.fit = lda(Direction ~ Lag1 + Lag2, data = Smarket , subset = train)
+lda.fit  # −0.642×Lag1−0.514×Lag2
+
+plot(lda.fit)
+
+
+lda.pred = predict(lda.fit, Smarket.2005)
+names(lda.pred)
+
+lda.class = lda.pred$class
+table(lda.class, Direction.2005)
+mean(lda.class == Direction.2005)
+
+sum(lda.pred$posterior[,1] >= 0.5)
+sum(lda.pred$posterior[,1] < 0.5)
+
+lda.pred$posterior[1:20,1]
+lda.class[1:20]
+sum(lda.pred$posterior[,1] > 0.9)
+
+
+```
+
+# 4.6.4 Quadratic Discriminant Analysis
+
+```{r }
+
+qda.fit = qda(Direction ~ Lag1 + Lag2, data = Smarket , subset = train)
+qda.fit
+
+qda.class = predict(qda.fit, Smarket.2005)$class
+table(qda.class, Direction.2005)
+mean(qda.class == Direction.2005)
+
+```
+
+# 4.6.5 K-Nearest Neighbors
+
+```{r }
+
+library(class)
+train.X = cbind(Lag1, Lag2)[train,]
+test.X = cbind(Lag1, Lag2)[!train,]
+train.Direction = Direction[train]
+
+set.seed(1)
+knn.pred = knn(train.X, test.X, train.Direction, k=1)
+table(knn.pred, Direction.2005)
+(83+43)/(83+43+58+68)
+mean(knn.pred == Direction.2005)
+
+knn.pred = knn(train.X, test.X, train.Direction, k=3)
+table(knn.pred, Direction.2005)
+mean(knn.pred == Direction.2005)
+detach(Smarket)
+
+```
+
+# 4.6.6 An Application to Caravan Insurance Data
+
+```{r }
+
+dim(Caravan)
+
+attach(Caravan)
+summary(Purchase)
+348 / 5474
+
+standardized.X = scale(Caravan[,-86])
+var(Caravan[,1])
+var(Caravan[,2])
+var(standardized.X[,1])
+var(standardized.X[,2])
+
+```
+
+
+```{r }
+test = 1:1000
+train.X = standardized.X[-test,]
+test.X = standardized.X[test,]
+train.Y=Purchase [-test]
+test.Y=Purchase [test]
+
+# k =1
+set.seed(1)
+knn.pred= knn(train.X, test.X, train.Y, k =1)
+mean(test.Y != knn.pred)
+mean(test.Y != "No")
+table(knn.pred ,test.Y)
+9/(68+9)
+
+# k =3
+knn.pred= knn(train.X, test.X, train.Y, k =3)
+table(knn.pred ,test.Y)
+5/26
+
+# k =5
+knn.pred= knn(train.X, test.X, train.Y, k =5)
+table(knn.pred ,test.Y)
+4/15
+
+```
+
+```{r }
+glm.fit = glm(Purchase ~., data = Caravan, family = binomial, subset = -test)
+
+glm.probs =predict(glm.fit ,Caravan[test,], type="response")
+glm.pred=rep ("No " ,1000)
+glm.pred[glm.probs >.5]=" Yes "
+table(glm.pred ,test.Y)
+
+glm.pred=rep ("No " ,1000)
+glm.pred[glm.probs >.25]=" Yes"
+table(glm.pred ,test.Y)
+11/(22+11)
+
+```
+
+
+Example 4 
+
+```{r }
+#a
+x = runif(100)
+
+library(ggplot2)
+ggplot(data.frame(x=c(-0.5,2)), aes(x=x)) + stat_function(fun=dunif, args=list(min = 0, max = 1), colour="black", size=1)+  ggtitle("Uniform Distribution of (min=1, max=1)") +theme_bw()
+
+(( 0.65 - 0.55)/(1-0))*100 
+
+#b
+(( 0.65 - 0.55)*(0.4-0.3))*100 
+
+#c
+0.1^(100)
+
+
+```
+
+Example 10
+
+```{r }
+
+# a
+summary(Weekly)
+
+library(psych)
+pairs.panels(Weekly, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE )# show correlation ellipses
+# b
+glm.fit = glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, family = "binomial", data= Weekly)
+summary(glm.fit)
+
+#c 
+glm.probs = predict(glm.fit, Weekly, type = "response")
+glm.pred = ifelse(glm.probs > 0.5, "Up", "Down")
+table(glm.pred, Weekly$Direction)
+mean(glm.pred == Weekly$Direction)
+
+#d 
+train = Weekly %>% filter (Year %in% c(1990:2008) )
+test = Weekly %>% filter (!(Year %in% c(1990:2008)) )
+glm.fit = glm(Direction ~ Lag2, data=train, family="binomial")
+glm.probs = predict(glm.fit, test, type="response")
+glm.pred = ifelse(glm.probs > 0.5, "Up", "Down")
+table(glm.pred, test$Direction)
+mean(glm.pred==test$Direction)
+
+#e
+library(MASS)
+lda.fit = lda(Direction ~ Lag2, data=train)
+lda.pred = predict(lda.fit, test)$class
+table(lda.pred, test$Direction)
+mean(lda.pred==test$Direction)
+
+#f
+qda.fit = qda(Direction ~ Lag2, data=train)
+qda.pred = predict(qda.fit, test)$class
+table(qda.pred, test$Direction)
+mean(qda.pred==test$Direction)
+
+#g
+set.seed(1)
+train.X = as.matrix(train$Lag2); test.X = as.matrix(test$Lag2)
+knn.pred = knn(train.X, test.X, train$Direction, k=1)
+table(knn.pred, test$Direction)
+mean(knn.pred == test$Direction)
+
+#h
+#i
+
+knn.pred = list(); aa = c()
+for (i in 1:30){
+set.seed(1)
+knn.pred[[i]] <- knn(train.X, test.X, train$Direction, k=i)
+aa[i] = mean(knn.pred[[i]] == test$Direction) }
+
+mytable = data.frame(cbind("k" = 1:30, "accuracy" = aa))
+
+
+```
+
+Example 11
+
+```{r }
+#a
+mpg01 = ifelse(Auto$mpg > median(Auto$mpg),1,0 )
+myAuto = data.frame(Auto, mpg01)
+
+#b
+pairs.panels(myAuto, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE )# show correlation ellipses
+#c
+set.seed(1)
+trainid = sample(1:nrow(myAuto), nrow(myAuto)*0.7 , replace=F)
+train = myAuto[trainid,]
+test = myAuto[-trainid,]
+
+#d
+lda.fit = lda(mpg01~cylinders+displacement+horsepower+weight, data=train)
+lda.pred = predict(lda.fit, test)$class
+table(lda.pred, test$mpg01)
+mean(lda.pred != test$mpg01) 
+
+#e
+qda.fit <- qda(mpg01~cylinders+displacement+horsepower+weight, data=train)
+qda.pred <- predict(qda.fit, test)$class
+table(qda.pred, test$mpg01)
+mean(qda.pred != test$mpg01)
+
+#f
+glm.fit =glm(mpg01~cylinders+displacement+horsepower+weight, data=train, family=binomial)
+glm.probs <- predict(glm.fit, test, type="response")
+glm.pred <- ifelse(glm.probs > 0.5, 1, 0)
+table(glm.pred, test$mpg01)
+mean(glm.pred != test$mpg01) 
+
+#g
+
+train.X = cbind(train$cylinders, train$displacement, train$horsepower, train$weight )
+test.X = cbind(test$cylinders, test$displacement, test$horsepower, test$weight)
+
+knn.pred = list(); aa = c()
+for (i in 1:100){
+set.seed(1)
+knn.pred[[i]] <- knn(train.X, test.X, train$mpg01, k=i)
+aa[i] = mean(knn.pred[[i]] == test$mpg01) }
+
+mytable = data.frame(cbind("k" = 1:100, "accuracy" = aa))
+
+
+
+
+
+```
+
+
+
+
+
+
+

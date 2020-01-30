@@ -1,0 +1,374 @@
+---
+title: "HW5"
+author: "jy"
+date: "2019년 4월 15일"
+output: html_document
+---
+
+### Lab
+
+# Chaper 5 Lab: Cross-Validation and the Bootstrap
+
+```{r setup}
+library(ISLR)
+library(tidyverse)
+library(MASS)
+library(boot)
+```
+
+# The Validation Set Approach
+- lm(y ~ x1, data = Totaldata, subset = train) : subset 옵션은 데이터 적합 시 train만을 사용하는 것을 의미함 
+- 그 후 predict 쓰면 전체 Auto 에 대한 predicted value 값 나옴 
+```{r }
+
+set.seed(1)
+train=sample(392,196)
+
+lm.fit=lm(mpg~horsepower,data=Auto,subset=train)
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+
+# test set MSE : (y-yhat)^2
+attach(Auto)
+mean((mpg-predict(lm.fit,Auto))[-train]^2) 
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+
+
+```
+-3차가 가장 낫다 
+```{r}
+
+set.seed(2)
+train=sample(392,196)
+
+lm.fit=lm(mpg~horsepower,subset=train)
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2) 
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+
+```
+- 2차 항까지 사용하는 게 가장 좋음(MSE 가장 낮음)
+
+# Leave-One-Out Cross-Validation (LOOCV)
+ :n개의 관측치가 있다면 총 n 번의 계산을 수행하기 위하여 LOOCV 사용함, 한 관측치만 빼고 계산하는 것으 반복함 
+ - 장점 :test MSE의 분산 작아짐 , bias↓ 
+- 단점 :시간오래걸림(n번 계산) , var↑
+```{r}
+
+glm.fit=glm(mpg~horsepower,data=Auto) 
+lm.fit=lm(mpg~horsepower,data=Auto)
+coef(glm.fit)
+coef(lm.fit)
+
+```
+- glm function 에서 family 지정해주지 않았음, 따라서 glm결과 = lm 결과 
+
+```{r}
+library(boot)
+glm.fit=glm(mpg~horsepower,data=Auto) 
+cv.err=cv.glm(Auto,glm.fit)
+cv.err$delta
+```
+- boot librart 에 있는 cv.glm 함수 사용하기 위해서 lm 아닌 glm적합
+- ev.err$delta 결과 2개 각각 보정안한 CV 추정치, 보정한 CV추정치
+- 여기서는 두 개의 숫자가 동일하다 
+ 
+```{r}
+cv.error=rep(0,5)
+for (i in 1:5){
+ glm.fit=glm(mpg~poly(horsepower,i),data=Auto)
+ cv.error[i]=cv.glm(Auto,glm.fit)$delta[1]
+ }
+cv.error
+
+```
+- 몇차항까지 사용한 모델의 성능이 가장 좋은가(cv error 가 가장 낮은가)를 살펴봤을 때, 1차는 매우 높고 2차부터는 거의 비슷하기 때문에 2차항이 가장 바람직 (모델 복잡하면 x)
+
+
+# k-Fold Cross-Validation
+- cv.glm 함수에 K =k값을 넣어서 k번 계산하도록 함 : 즉 k개의 데이터 그룹으로 나눠 k번째 그룹을 test로, 나머지 그룹을 train 으로 
+
+- 장점 : 계산시간단축, 결과 비슷 , vars↓
+- 단점 : bias↑
+```{r}
+set.seed(17)
+
+cv.error.10=rep(0,10)
+for (i in 1:10){
+ glm.fit=glm(mpg~poly(horsepower,i),data=Auto)
+ cv.error.10[i]=cv.glm(Auto,glm.fit,K=10)$delta[1]
+ }
+cv.error.10
+
+```
+
+# The Bootstrap
+- 현재 가지고 있는 데이터를 모집단이라고 하고 복원추출로(중복하여) n개 관측치를 뽑아서 B개의 표본 만드는 방법
+
+-장점 : 거의 모든 상황에 적용될 수 있음, 복잡한 수학적 계산이 필요하지 않음 
+-사용방법
+1. 관심있는 통계량을 계산하는 함수를 생성하기
+2. boot라이브러리에 있는 boot 함수를 사용해 복원추출 
+
+```{r}
+
+alpha.fn=function(data,index){
+ X=data$X[index]
+ Y=data$Y[index]
+ return((var(Y)-cov(X,Y))/(var(X)+var(Y)-2*cov(X,Y)))
+}
+alpha.fn(Portfolio,1:100) # 100개 관측치를 사용해서 alpha 추정해줌 
+
+set.seed(1)
+alpha.fn(Portfolio,sample(100,100,replace=T)) # 1~100까지 범위의 100개 관측치를 랜덤 복원추출 
+```
+
+-위 과정을 boot 함수가 해줌, 즉 1000개의 부트스트랩 추정치를 제공함 
+```{r}
+boot(Portfolio,alpha.fn,R=1000)
+```
+결과적으로 alpha_hat = 0.5758321, se(alpha_hat) = 0.08861826
+
+
+# Estimating the Accuracy of a Linear Regression Model
+```{r}
+
+boot.fn=function(data,index)
+ return(coef(lm(mpg~horsepower,data=data,subset=index)))
+
+boot.fn(Auto,1:392)
+``` 
+
+- 랜덤으로 복원추출해서 추정치 구해보까 
+```{r}
+set.seed(1)
+boot.fn(Auto,sample(392,392,replace=T))
+boot.fn(Auto,sample(392,392,replace=T))
+```
+
+-boot() 함수 이용해서 절편, 기울기에 대한 1000개 붓스트랩 추정치의 표준오차를 계산해줌 
+```{r}
+boot(Auto,boot.fn,1000)
+
+summary(lm(mpg~horsepower,data=Auto))$coef
+```
+-위 결과를 보면 표준오차가 붓스트랩방법일 때는 각각 0.86, 0.007인데 lm적합했을 때는 0.71,0.006임
+--일반적인lm : noise 분산에 의존함, RSS 로 추정, 이건 x는 고정되어 있고 ei의 변화에서부터 오차가 비롯된다고 가정
+--붓스트랩lm : 가정이 필요하지 않기 때문에 표준오차를 더 정확하게 추정할 수 있다 
+
+```{r}
+boot.fn=function(data,index)
+ coefficients(lm(mpg~horsepower+I(horsepower^2),data=data,subset=index))
+set.seed(1)
+boot(Auto,boot.fn,1000)
+
+summary(lm(mpg~horsepower+I(horsepower^2),data=Auto))$coef
+
+```
+-비슷하다 
+
+### EX 2
+
+```{r}
+#d
+(1-1/5)^5
+#e
+(1-1/100)^100
+#f
+(1-1/10000)^10000
+
+#g
+x = 1:100000
+options(scipen = 100)
+plot(x, 1 - (1 - 1/x)^x,
+     main ="The probability that the jth observation is in the bootstrap sample",
+     xlab ="sample size" , ylab = "Probability")
+
+#h
+store=rep (NA , 10000)
+for(i in 1:10000) { store[i]=sum(sample (1:100 , rep =TRUE)==4) >0 }
+mean(store)
+
+a = (1-1/10000)^10000
+1-a
+
+```
+
+
+### EX 5
+
+```{r}
+#a
+set.seed(10)
+glm.fit = glm(default ~ income + balance, data = Default, family = "binomial")
+summary(glm.fit)
+glm.prob = predict(glm.fit, Default, type="response")
+glm.pred = ifelse(glm.prob > 0.5, "Yes", "No")
+mean(Default$default != glm.pred)
+
+#b
+set.seed(10) 
+train = sample( nrow(Default), nrow(Default)*0.5 )
+glm.fit = glm(default ~ income + balance, data=Default, family=binomial, subset=train)
+glm.prob = predict(glm.fit, Default[-train,], type="response")
+glm.pred = ifelse(glm.prob > 0.5, "Yes", "No")
+table(glm.pred, Default[-train,]$default)
+mean(Default[-train,]$default != glm.pred)  # test mse
+
+#c
+set.seed(5) 
+train = sample( nrow(Default), nrow(Default)*0.5 )
+glm.fit1 = glm(default ~ income + balance, data=Default, family=binomial, subset=train)
+glm.prob1 = predict(glm.fit1, Default[-train,], type="response")
+glm.pred1 = ifelse(glm.prob1 > 0.5, "Yes", "No")
+table(glm.pred1, Default[-train,]$default)
+mean(Default[-train,]$default != glm.pred1)  # test mse
+
+set.seed(14) 
+train = sample( nrow(Default), nrow(Default)*0.5 )
+glm.fit2 = glm(default ~ income + balance, data=Default, family=binomial, subset=train)
+glm.prob2 = predict(glm.fit2, Default[-train,], type="response")
+glm.pred2 = ifelse(glm.prob2 > 0.5, "Yes", "No")
+table(glm.pred2, Default[-train,]$default)
+mean(Default[-train,]$default != glm.pred2)  # test mse
+
+set.seed(157) 
+train = sample( nrow(Default), nrow(Default)*0.5 )
+glm.fit3 = glm(default ~ income + balance, data=Default, family=binomial, subset=train)
+glm.prob3 = predict(glm.fit3, Default[-train,], type="response")
+glm.pred3 = ifelse(glm.prob3 > 0.5, "Yes", "No")
+table(glm.pred3, Default[-train,]$default)
+mean(Default[-train,]$default != glm.pred3)  # test mse
+
+#d
+set.seed(1)
+train = sample(nrow(Default), nrow(Default)*0.5)
+glm.fit = glm(default ~ income + balance + student, data=Default, family=binomial, subset=train)
+glm.fit = predict(glm.fit, Default[-train,], type="response")
+glm.fit = ifelse(glm.fit > 0.5, "Yes", "No")
+mean(Default[-train,]$default != glm.fit)   # test mse
+
+```
+
+
+### EX 7
+
+```{r}
+
+#a
+glm.fit = glm(Direction ~ Lag1 + Lag2 , data = Weekly, family = "binomial")
+summary(glm.fit)
+
+#b
+glm.fit = glm(Direction ~ Lag1 + Lag2 , data = Weekly, subset = 2:nrow(Weekly), family = "binomial")
+summary(glm.fit)
+
+#c
+ifelse(predict(glm.fit, Weekly, type="response")>0.5, "Up", "Down")[1]
+Weekly$Direction[1]
+
+
+#d
+
+set.seed(1)
+LOOCV <- c()
+for (i in 1:nrow(Weekly)) {
+  glm.fit = glm(Direction ~ Lag1 + Lag2, data=Weekly[-i,], family=binomial)
+  glm.pred = ifelse(predict(glm.fit, Weekly[1,], type="response")>0.5, "Up", "Down")
+  LOOCV[i] = ifelse(Weekly[i,]$Direction==glm.pred, 0, 1)
+}
+
+#e
+mean(LOOCV)
+
+
+```
+
+### EX 9
+
+```{r}
+#a
+mean(Boston$medv)
+
+#b
+sd(Boston$medv)/sqrt(nrow(Boston))
+
+#c
+set.seed(1)
+mean.fn <- function(var, id) {
+  return( mean(var[id]) )
+}
+boot(Boston$medv, mean.fn, R=100)
+
+#d
+boot.res$t0 - 2*sd(boot.res$t)  # lower bound
+boot.res$t0 + 2*sd(boot.res$t)  # upper bound
+t.test(Boston$medv)
+
+#e
+median(Boston$medv)
+
+#f
+set.seed(1)
+median.fn <- function(var, id) {
+  return(median(var[id]))
+}
+(boot.res <- boot(Boston$medv, median.fn, R=100))
+
+
+#g
+quantile(Boston$medv, 0.1)
+
+#h
+set.seed(1)
+quantile10.fn <- function(var, id) {
+  return(quantile(var[id], 0.1))
+}
+boot(Boston$medv, quantile10.fn, R=100)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,263 @@
+---
+title: 'HW8.Chapter9-Support Vector Machine'
+output: html_document
+---
+
+## Lab
+
+```{r }
+
+
+```
+
+## 4번 문제 
+```{r }
+library(e1071)
+
+### data setting ### 
+# train set 
+set.seed(1)
+x = rnorm(100)
+y = 7*x^2 + rnorm(100)
+train = sample(100, 50)
+y[train] = y[train] + 3
+y[-train] = y[-train] - 3
+
+plot(x[train], y[train], pch="+", lwd=4, col="red", ylim=c(-4, 20), xlab="X", ylab="Y")
+points(x[-train], y[-train], pch="o", lwd=4, col="blue")
+
+# split variable z 
+set.seed(315)
+z = rep(0, 100)
+z[train] = 1
+final.train = c(sample(train, 25), sample(setdiff(1:100, train), 25))
+
+# train, test 
+data.train = data.frame(x=x[final.train], y=y[final.train], z=as.factor(z[final.train]))
+data.test = data.frame(x=x[-final.train], y=y[-final.train], z=as.factor(z[-final.train]))
+
+
+### train set - 3 kernel fit ### 
+# linear kernel 
+svm.linear = svm(z~., data=data.train, kernel="linear", cost=10)
+plot(svm.linear, data.train)
+linear.table = table(z[final.train], predict(svm.linear, data.train))
+linear.table
+linear.table[1,2] + linear.table[2,1] # number of error
+
+# polynomial kernel
+set.seed(1)
+svm.poly = svm(z~., data=data.train, kernel="polynomial", cost=10)
+plot(svm.poly, data.train)
+poly.table = table(z[final.train], predict(svm.poly, data.train))
+poly.table
+poly.table[1,2] + poly.table[2,1] # number of error
+
+# radial kernel
+set.seed(1)
+svm.radial = svm(z~., data=data.train, kernel="radial", gamma=1, cost=10)
+plot(svm.radial, data.train)
+radial.table = table(z[final.train], predict(svm.radial, data.train))
+radial.table
+radial.table[1,2] + radial.table[2,1] # number of error # perfect !!!!
+
+
+### test set - 3 kernel fit ### 
+plot(svm.linear, data.test)
+test1 = table(z[-final.train], predict(svm.linear, data.test))
+test1
+test1[1,2] + test1[2,1] 
+
+plot(svm.poly, data.test)
+test2 = table(z[-final.train], predict(svm.poly, data.test))
+test2
+test2[1,2] + test2[2,1] 
+
+plot(svm.radial, data.test)
+test3 = table(z[-final.train], predict(svm.radial, data.test))
+test3
+test3[1,2] + test3[2,1] 
+```
+
+## 5번 문제 
+```{r }
+# a
+set.seed(400)
+x1 = runif(500) - 0.5
+x2 = runif(500) - 0.5
+y = 1 * (x1^2 - x2^2 > 0)
+
+# b
+plot(x1[y == 0], x2[y == 0], col = "red", xlab = "X1", ylab = "X2", pch = "+")
+points(x1[y == 1], x2[y == 1], col = "blue", pch = 4)
+# non-linear !!!!
+
+# c
+lm.fit = glm(y ~ x1 + x2, family = binomial)
+summary(lm.fit)
+# x1, x2 : insignificant!!!
+
+# d
+data = data.frame(x1 = x1, x2 = x2, y = y)
+lm.prob = predict(lm.fit, data, type = "response")
+lm.pred = ifelse(lm.prob > 0.5, 1, 0)
+data.pos = data[lm.pred == 1, ]
+data.neg = data[lm.pred == 0, ]
+plot(data.pos$x1, data.pos$x2, col = "blue", xlab = "X1", ylab = "X2", pch = "+")
+points(data.neg$x1, data.neg$x2, col = "red", pch = 4)
+# linear boundary!!!
+
+# e
+lm.fit = glm(y ~ poly(x1, 2) + poly(x2, 2) + I(x1 * x2) + log(x2), data = data, family = binomial)
+summary(lm.fit)
+
+# f
+lm.prob = predict(lm.fit, data, type = "response")
+lm.pred = ifelse(lm.prob > 0.5, 1, 0)
+data.pos = data[lm.pred == 1, ]
+data.neg = data[lm.pred == 0, ]
+plot(data.pos$x1, data.pos$x2, col = "blue", xlab = "X1", ylab = "X2", pch = "+")
+points(data.neg$x1, data.neg$x2, col = "red", pch = 4)
+# non-linear boundary !!! d보다는 잘 예측한다 
+
+# g
+library(e1071)
+svm.fit = svm(as.factor(y) ~ x1 + x2, data, kernel = "linear", cost = 0.1)
+svm.pred = predict(svm.fit, data)
+data.pos = data[svm.pred == 1, ]
+data.neg = data[svm.pred == 0, ]
+plot(data.pos$x1, data.pos$x2, col = "blue", xlab = "X1", ylab = "X2", pch = "+")
+points(data.neg$x1, data.neg$x2, col = "red", pch = 4)
+
+
+
+# h
+# polynomial
+svm.fit = svm(as.factor(y) ~ x1 + x2, data, kernel="polynomial", cost=5)
+svm.pred = predict(svm.fit, data)
+data.pos = data[svm.pred == 1, ]
+data.neg = data[svm.pred == 0, ]
+plot(data.pos$x1, data.pos$x2, col = "blue", xlab = "X1", ylab = "X2", pch = "+")
+points(data.neg$x1, data.neg$x2, col = "red", pch = 4)
+
+#radial
+svm.fit = svm(as.factor(y) ~ x1 + x2, data, kernel = "radial", gamma = 1)
+svm.pred = predict(svm.fit, data)
+data.pos = data[svm.pred == 1, ]
+data.neg = data[svm.pred == 0, ]
+plot(data.pos$x1, data.pos$x2, col = "blue", xlab = "X1", ylab = "X2", pch = "+")
+points(data.neg$x1, data.neg$x2, col = "red", pch = 4)
+# gooooooood !! 실제 값에서의 경계와 유사함
+
+#i 
+
+```
+
+## 8번 문제 
+```{r }
+
+# a
+library(ISLR)
+set.seed(1)
+train = sample(dim(OJ)[1], 800)
+OJ.train = OJ[train, ]
+OJ.test = OJ[-train, ]
+
+# b
+library(e1071)
+svm.linear = svm(Purchase ~ ., kernel = "linear", data = OJ.train, cost = 0.01)
+summary(svm.linear)
+# 432개 support vector 생성, CH:215개  MM:217개 
+
+# c 
+train.pred = predict(svm.linear, OJ.train)
+test.pred = predict(svm.linear, OJ.test)
+t1 =table(OJ.train$Purchase, train.pred)
+t2 =table(OJ.test$Purchase, test.pred)
+
+(t1[1,2] + t1[2,1])/sum(t1)  # training error rate 
+(t2[1,2] + t2[2,1])/sum(t2)  # test error rate 
+
+# d
+set.seed(1)
+tune.out = tune(svm, Purchase ~ ., data = OJ.train, kernel = "linear", 
+                ranges = list(cost = 10^seq(-2,1, by = 0.25)))
+summary(tune.out)
+# optimal cost = 0.01778279
+
+# e
+svm.linear = svm(Purchase ~ ., kernel = "linear", data = OJ.train, cost = tune.out$best.parameters$cost)
+train.pred = predict(svm.linear, OJ.train)
+test.pred = predict(svm.linear, OJ.test)
+t1 =table(OJ.train$Purchase, train.pred)
+t2 =table(OJ.test$Purchase, test.pred)
+
+(t1[1,2] + t1[2,1])/sum(t1)  # training error rate 
+(t2[1,2] + t2[2,1])/sum(t2)  # test error rate 
+
+# f
+# radial kernel 이용 
+set.seed(1)
+svm.radial = svm(Purchase ~ ., data = OJ.train, kernel = "radial")
+summary(svm.radial)
+
+train.pred = predict(svm.radial, OJ.train)
+f1 = table(OJ.train$Purchase, train.pred)
+test.pred = predict(svm.radial, OJ.test)
+f2 = table(OJ.test$Purchase, test.pred)
+
+(f1[1,2]+f1[2,1])/sum(f1) # training error rate
+(f2[1,2]+f2[2,1])/sum(f2) # test error rate
+
+# tune 함수 사용 
+set.seed(755)
+tune.out = tune(svm, Purchase ~ ., data = OJ.train, kernel = "radial", ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(tune.out)
+
+svm.radial = svm(Purchase ~ ., data = OJ.train, kernel = "radial", cost = tune.out$best.parameters$cost)
+train.pred = predict(svm.radial, OJ.train)
+test.pred = predict(svm.radial, OJ.test)
+
+f3 = table(OJ.train$Purchase, train.pred)
+f4 = table(OJ.test$Purchase, test.pred)
+
+(f3[1,2]+f3[2,1])/sum(f3) # training error rate
+(f4[1,2]+f4[2,1])/sum(f4) # test error rate
+
+
+# g
+# poly kernel , degree=2이용 
+set.seed(1)
+svm.poly = svm(Purchase ~ ., data = OJ.train, kernel = "poly", degree = 2)
+summary(svm.poly)
+
+train.pred = predict(svm.poly, OJ.train)
+test.pred = predict(svm.poly, OJ.test)
+
+g1 = table(OJ.train$Purchase, train.pred)
+g2 = table(OJ.test$Purchase, test.pred)
+(g1[1,2]+g1[2,1])/sum(g1) # training error rate
+(g2[1,2]+g2[2,1])/sum(g2) # test error rate
+
+# tune 함수 
+set.seed(322)
+tune.out = tune(svm, Purchase ~ ., data = OJ.train, kernel = "poly", degree = 2, 
+    ranges = list(cost = 10^seq(-2, 1, by = 0.25)))
+summary(tune.out)
+
+svm.poly = svm(Purchase ~ ., data = OJ.train, kernel = "poly", degree = 2, cost = tune.out$best.parameters$cost)
+train.pred = predict(svm.poly, OJ.train)
+test.pred = predict(svm.poly, OJ.test)
+
+g3 = table(OJ.train$Purchase, train.pred)
+g4 = table(OJ.test$Purchase, test.pred)
+(g3[1,2]+g3[2,1])/sum(g3) # training error rate
+(g4[1,2]+g4[2,1])/sum(g4) # test error rate
+
+
+# h
+
+
+```
+

@@ -1,0 +1,394 @@
+---
+title: "HW7 -Chapter8.Tree-Based Methods"
+output: html_document
+---
+
+# Lab : Decision Tree
+
+### Fitting classification Trees
+```{r}
+library(tidyverse)
+library(tree)
+library(ISLR)
+library(randomForest)
+```
+
+```{r}
+Carseats =Carseats %>% mutate(High = as.factor(ifelse(Sales <=8,"No","Yes")))# sales:numeric->High:class 
+tree.carseats = tree(High ~ ., Carseats %>% select(-Sales)) # Select 제거 
+tree.carseats
+summary(tree.carseats) # 내부노드로 사용된변수, 터미널노드의 수, training error 보여줌
+```
+- Misclassification error rate: 0.09 = 36 / 400  : training set 의 오분류율
+- Residual mean deviance:  0.4575 = 170.7 / 373  : Deviance/(400-27)
+
+```{r}
+plot(tree.carseats)  # tree구조 
+text(tree.carseats, pretty = 0) #노드라벨표시 , pretty = 0옵션 : categorical var 에 대한 설명 포함 
+```
+- 첫번째 split의 구분변수가 ShelveLoc변수이기 때문에 가장 중요한 변수라고 알수있음
+- 위에서 training set 에 대한 Misclassification error rate만 나왔기 때문에 test set 에 대한 error를 고려해야함
+
+## Validation Set Approach -> tree fitting 
+```{r}
+set.seed(2)
+train_index = sample(1:nrow(Carseats), nrow(Carseats)/2 )
+train = Carseats[train_index,]
+test = Carseats[-train_index,]
+
+tree.carseats = tree(High ~.- Sales, Carseats, subset = train_index)
+tree.pred = predict(tree.carseats, test, type = "class") # type = "class"이용해서 실제 예측값 반환
+
+tree.table = table(tree.pred, test$High)
+(tree.table[1,1]+tree.table[2,2])/sum(tree.table) # test error rate 
+
+```
+## CV -> tree fitting 
+```{r}
+set.seed(3)
+cv.carseats = cv.tree(tree.carseats, FUN = prune.misclass) 
+names(cv.carseats)
+cv.carseats
+```
+- cv.tree : Number of terminal nodes, error rate, alpha(value of the cost-complexity parameter)->k 제공 
+- FUN = prune.misclass: deviance(default)대신 misclssification rate 기반으로 CV와 pruning 수행  
+- size(number of terminal nodes) = 9 일 때, deviance = 50으로 가장 작은 값 가질 수 있음 
+
+```{r}
+# model fitting 
+tree.carseats = tree(High ~.- Sales, Carseats, subset = train_index)
+cv.carseats = cv.tree(tree.carseats, FUN = prune.misclass)
+prune.carseats.9 = prune.misclass(tree.carseats, best = 9)  # 가지치기
+prune.carseats.15 = prune.misclass(tree.carseats, best = 15)  # 가지치기
+
+## plot 
+par(mfrow = c(2,2))
+plot(cv.carseats$size, cv.carseats$dev, type = "b")
+plot(cv.carseats$k, cv.carseats$dev, type = "b")
+plot(prune.carseats.9)
+text(prune.carseats.9, pretty = 0)
+plot(prune.carseats.15)
+text(prune.carseats.15, pretty = 0)
+par(mfrow = c(1,1))
+
+# predict
+tree.pred.9 = predict(prune.carseats.9, test, type= "class")
+tree.table.9 = table(tree.pred.9, test$High)
+tree.pred.15 = predict(prune.carseats.15, test, type= "class")
+tree.table.15 = table(tree.pred.15, test$High)
+
+# misclassification rate 
+(tree.table[1,1]+tree.table[2,2])/sum(tree.table)
+(tree.table.9[1,1]+tree.table.9[2,2])/sum(tree.table.9)
+(tree.table.15[1,1]+tree.table.15[2,2])/sum(tree.table.15) # good 
+
+```
+
+
+### Fitting Regression Trees
+```{r }
+library(MASS)
+set.seed(1)
+train_index = sample(1:nrow(Boston), nrow(Boston)/2)
+test = Boston[-train_index,]
+
+tree.boston = tree(medv ~., Boston, subset = train_index)
+summary(tree.boston)
+```
+- Variables actually used in tree construction :결과 보면 3개의 변수만 사용됨 
+- Residual mean deviance:  12.65 = 3099 / 245 :단순하게 그 트리에 대한 오차제곱합
+
+```{r}
+plot(tree.boston)
+text(tree.boston, pretty=0)
+```
+- lstat(사회경제적 지위가 낮은 사람들의 백분율)- 이 값이 낮을수록 주택가격이 높음 (즉 해당 지역에 사회경제적 지위가 낮은 사람들이 적은 지역일수록 주택가격이 높다는 의미)
+- 거주자들의 사회경제적지위가 높은 교외지역(rm>=7.437, lstat<9.715)에서는 주택가격이 46.38=$46,400 라고 예측
+
+```{r}
+# CV 사용
+cv.boston =  cv.tree(tree.boston)
+plot(cv.boston$size , cv.boston$dev, type ="b")
+# Pruning 
+prune.boston = prune.tree(tree.boston, best =5)
+plot(prune.boston)
+text(prune.boston, pretty=0)
+# y vs y_hat plot 
+pred = predict(tree.boston, newdata = test )
+plot(pred, test$medv)
+abline(0,1)
+mean((pred-test$medv)^2) 
+  # training MSE  = 25.04559, sqrt(25.04559)=5.005
+  # test set 에대한 모델의 예측값이 교외지역 실제 median 가격의 $5.005이내에 있다 
+```
+
+### Bagging and Random Forests 
+```{r}
+
+### Bagging ### randomforest에서 m =p
+set.seed(1)
+# mtry= 13
+bag.boston = randomForest(medv~., data = Boston, subset = train_index, mtry=13, importance=TRUE)
+          # mtry=13 의미 : 트리의 각 split에 13개 variable 이 모두 고려된다는 의미 
+bag.boston
+pred.bag= predict(bag.boston, test)
+plot(pred.bag, test$medv)
+abline(0,1)
+mean((pred.bag-test$medv)^2) # single tree사용했을 때의 절반! 
+
+# mtry= 13, ntree= 25
+bag.boston1 = randomForest(medv~., data = Boston, subset = train_index, mtry=13, ntree=25, importance=TRUE)
+bag.boston1
+pred1.bag= predict(bag.boston1, test)
+plot(pred1.bag, test$medv)
+abline(0,1)
+mean((pred1.bag-test$medv)^2) # single tree사용했을 때의 절반! 
+
+
+### Random Forest ### 
+set.seed(1)
+rf.boston = randomForest(medv~., data = Boston, subset = train_index, mtry= 6, importance=TRUE)
+           # 일반적으로 regression tree 만들 떄는 p/3개 사용
+           # classification tree 만들떄는 sqrt(p)개 사용
+rf.boston
+pred.rf = predict(rf.boston, newdata= test)
+mean((pred.rf-test$medv)^2) # test MSE -> rf가 bagging 보다 더 good!
+importance(rf.boston) # 변수중요도에 대해서 %IncMSE , IncNodePurity값 제공 
+varImpPlot(rf.boston)
+```
+* 변수 중요도에 대한 두 가지 측도 
+- %IncMSE :해당 변수가 모델에서 제외될 떄 bagging 되지 않은 sample에 대한 예측정확도의 평균감소량 
+- IncNodePurity :해당 변수에 대한 분할로 인한 노드 impurity의 총 감소량에 대해 모든 트리들의 평균값 
+
+
+### Boosting 
+```{r}
+library(gbm)
+## model fitting 
+set.seed(1)
+boost.boston = gbm(medv~., data = Boston[train_index,], distribution = "gaussian", n.trees= 5000,
+                   interaction.depth = 4) # shirinkage default = 0.001
+# shirinkage para lambda 조정 
+set.seed(1)
+boost.boston.adj = gbm(medv~., data = Boston[train_index,], distribution = "gaussian", n.trees= 5000,
+                   interaction.depth = 4, shrinkage = 0.2, verbose=F)
+summary(boost.boston)
+
+## Partial Dependence Plot (부분종속성그래프)
+par(mfrow=c(1,2))
+plot(boost.boston, i = "rm")   
+plot(boost.boston, i = "lstat")
+par(mfrow=c(1,1))
+
+## predict - > test MSE 
+pred.boost = predict(boost.boston, newdata=test, n.trees = 5000)
+pred.boost.adj = predict(boost.boston.adj, newdata=test, n.trees = 5000)
+
+# testMSE 
+mean((pred.boost-test$medv)^2) # test MSE , rf와비슷, bagging보다 우수함 
+mean((pred.boost.adj-test$medv)^2) 
+```
+- distribution = "gaussian", 만약 2-class 분류문제였다면 "bernouli"로 지정 
+- n.trees= 5000 : 트리의 수 
+- interaction.depth: 트리의 깊이 
+- summary 결과 :lstat가 가장 중요한 변수
+- partial dependence plot : rm 이 증가할수록 주택가격의median증가, lstat 증가할수록 주택각격의median 감소
+
+
+### EX 8 
+```{r}
+
+library(ISLR)
+#a
+data(Carseats) 
+set.seed(1)
+train_index= sample(1:nrow(Carseats), nrow(Carseats)/2)
+test = Carseats[-train_index,]
+
+#b
+tree.carseats = tree(Sales~., data= Carseats,subset =train_index)
+pred.tree = predict(tree.carseats, test)
+summary(tree.carseats)
+# tree plot
+plot(tree.carseats)
+text(tree.carseats, pretty=0)
+# testMSE
+mean((pred.tree - test$Sales)^2)
+
+#c
+#model fitting
+cv.carseats = cv.tree(tree.carseats, FUN = prune.tree)
+cv.carseats
+#plot -> best size =9
+par(mfrow = c(1, 2))
+plot(cv.carseats$size, cv.carseats$dev, type = "b")
+plot(cv.carseats$k, cv.carseats$dev, type = "b")
+par(mfrow = c(1, 1))
+# pruning
+pruned.carseats = prune.tree(tree.carseats, best = 9)
+plot(pruned.carseats)
+text(pruned.carseats, pretty = 0)
+# predict
+pred.prune = predict(pruned.carseats, test)
+mean((pred.prune-test$Sales)^2)
+
+#d
+library(randomForest)
+## bagging model fitting 
+bag.carseats = randomForest(Sales~.,data =Carseats, subset=train_index, mtry=ncol(Carseats)-1,ntree=500, importance =TRUE)
+bag.carseats
+#predict
+pred.bag = predict(bag.carseats, test)
+plot(pred.bag, test$Sales)
+abline(0,1)
+#testMSE
+mean((pred.bag-test$Sales)^2)
+#importance PLOT
+importance(bag.carseats)
+varImpPlot(bag.carseats)
+
+#e
+## Random Forest
+set.seed(1)
+rf.carseats = randomForest(Sales~., data = Carseats, subset = train_index, mtry= 6,ntree = 500,importance=TRUE)
+           # 일반적으로 regression tree 만들 떄는 p/3개 사용
+rf.carseats
+#predict
+pred.rf = predict(rf.carseats, newdata= test)
+#testMSE
+mean((pred.rf-test$Sales)^2) # test MSE -> rf가 bagging 보다 더 good!
+#importance PLOT
+importance(rf.carseats) # 변수중요도에 대해서 %IncMSE , IncNodePurity값 제공 
+varImpPlot(rf.carseats)
+```
+
+
+### EX 9
+```{r}
+#a
+data(OJ)
+head(OJ)
+set.seed(1)
+train_index= sample(1:nrow(OJ), 800)
+test = OJ[-train_index,]
+#b
+tree.oj = tree(Purchase~., data=OJ[train_index,])
+summary(tree.oj)
+#c
+tree.oj
+#d
+plot(tree.oj)
+text(tree.oj, pretty=0)
+
+#e
+pred.tree = predict(tree.oj, newdata =test, type = "class") # type = "class"이용해서 실제 예측값 반환
+tree.table = table(pred.tree, test$Purchase)
+tree.table
+
+#f
+cv.oj = cv.tree(tree.oj, FUN=prune.tree)
+cv.oj
+
+#g
+par(mfrow = c(1,2))
+plot(cv.oj$size, cv.oj$dev, type = "b")
+plot(cv.oj$k, cv.oj$dev, type = "b")
+par(mfrow = c(1,1))
+
+#h
+
+#i
+prune.oj = prune.tree(tree.oj, best=6)
+
+#j
+summary(tree.oj)
+summary(prune.oj)
+
+#k
+#predict
+pred.test = predict(tree.oj, newdata =test,type = "class")
+prune.pred.test = predict(prune.oj, newdata =test,type="class")
+# confusion matrix
+unprune.table=table(pred.test, test$Purchase)
+prune.table = table(prune.pred.test, test$Purchase)
+# misclassification rate 
+(unprune.table[1,2]+ unprune.table[2,1])/sum(unprune.table)
+(prune.table[1,2]+ prune.table[2,1])/sum(prune.table)
+```
+
+
+### EX 10 - boosting 
+```{r, warning=FALSE, error = FALSE}
+#a
+library(ISLR)
+library(dplyr)
+data(Hitters)
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+Hitters = Hitters %>% filter(!is.na(Salary)) %>% mutate(Salary = log(Salary))
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+#b
+train_index = c(1:200)
+train = Hitters[train_index,]
+test = Hitters[-train_index,]
+
+#c
+library(gbm)
+set.seed(5)
+lambdas = 10^seq(-10,0, by = 0.1)
+train.errors = rep(0, length(lambdas))
+test.errors = rep(0, length(lambdas))
+for (i in 1:length(lambdas)) {
+    boost.hitters = gbm(Salary ~ .,data=train,distribution="gaussian",n.trees=1000, shrinkage=lambdas[i])
+    train.pred = predict(boost.hitters, train, n.trees = 1000)
+    test.pred = predict(boost.hitters, test, n.trees = 1000)
+    train.errors[i] = mean((train$Salary - train.pred)^2)
+    test.errors[i] = mean((train$Salary - test.pred)^2)
+}
+plot(lambdas, train.errors, type = "b", xlab = "lambda(Shrinkage para)", ylab = "Train MSE", pch = 20)
+min(train.errors)
+lambdas[which.min(train.errors)]
+
+#d
+plot(lambdas, test.errors, type = "b", xlab = "lambda(Shrinkage para)", ylab = "Test MSE", pch = 20)
+min(test.errors)
+lambdas[which.min(test.errors)]
+
+#e
+# lm Fit 
+lm.fit = lm(Salary ~ ., data = train)
+lm.pred = predict(lm.fit,test)
+mean((test$Salary - lm.pred)^2) # testMSE in lm
+# Lasso Fit
+library(glmnet)
+set.seed(134)
+x = model.matrix(Salary ~ ., data = train)
+y = train$Salary
+x.test = model.matrix(Salary ~ ., data = test)
+ridge.fit = glmnet(x, y, alpha = 0) # Lidge
+lasso.fit = glmnet(x, y, alpha = 1) # Lasso 
+ridge.pred = predict(ridge.fit, s = 0.01, newx = x.test)
+lasso.pred = predict(lasso.fit, s = 0.01, newx = x.test)
+
+mean((test$Salary - ridge.pred)^2)
+mean((test$Salary - lasso.pred)^2)
+
+#f
+boost.best = gbm(Salary ~ ., data = train, distribution = "gaussian", 
+    n.trees = 1000, shrinkage = lambdas[which.min(test.errors)])
+summary(boost.best)
+
+#g
+
+set.seed(1)
+rf.hitters = randomForest(Salary ~ ., data = train, ntree = 500, mtry = 19)
+rf.pred = predict(rf.hitters, test)
+mean((test$Salary - rf.pred)^2)
+
+
+```
+
+
+
+

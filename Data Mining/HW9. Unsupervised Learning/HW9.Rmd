@@ -1,0 +1,106 @@
+---
+title: 'HW9.Chapter10-Unsupervised Learning'
+output: html_document
+---
+
+## Lab 1 : Principal Component Analysis
+```{r }
+states= row.names(USArrests)
+states
+names(USArrests)
+apply(USArrests, 2, mean)
+apply(USArrests, 2, var)
+
+# PCA
+pr.out = prcomp(USArrests, scale = TRUE)
+names(pr.out)
+pr.out$center # mean
+pr.out$scale  # standard deviation
+pr.out$rotation # loading vector 
+#pr.out$x   # 새로운 주성분 값 
+dim(pr.out$x)
+biplot(pr.out, scale = 0)
+
+# 부호 바꾸기
+pr.out$rotation = -pr.out$rotation
+pr.out$x = -pr.out$x
+biplot(pr.out, scale = 0)
+
+pr.out$sdev # standard deviation 
+pr.var = pr.out$sdev^2
+pr.var  # variance
+
+pve = pr.var / sum(pr.var)
+pve
+
+plot(pve, xlab = "Principal Component", ylab = "Proportion of Variance Explained", ylim = c(0,1), type='b')
+plot(cumsum(pve), xlab = "Principal Component", ylab = "Cumulative Proportion of Variance Explained", 
+     ylim = c(0,1), type = 'b')
+
+
+
+
+
+```
+
+## Lab2 : Clustering
+```{r }
+
+
+```
+
+
+## 7번 문제 
+```{r }
+library(ISLR)
+set.seed(1)
+
+a = dist(scale(USArrests))^2 # 유클리드 거리의 제곱 
+b = as.dist(1 - cor(t(scale(USArrests)))) # 
+summary(b/a)
+plot(b/a)
+```
+
+## 10번 문제 
+```{r }
+#a
+set.seed(12)
+X <- rbind(matrix(rnorm(20*50, mean = 0), nrow = 20),
+matrix(rnorm(20*50, mean=0.7), nrow = 20),
+matrix(rnorm(20*50, mean=1.4), nrow = 20))
+
+#b
+X.pca = prcomp(X)$x
+plot(X.pca[,1:2], col=c(rep(1,20), rep(2,20), rep(3,20)), pch =c(rep(1,20), rep(2,20), rep(3,20)))
+?plot
+
+#c   #k=3
+res = kmeans(X, centers = 3)
+true_class = c(rep(1,20), rep(2,20), rep(3,20))
+table(res$cluster, true_class)
+
+
+#d   #k=2
+res = kmeans(X, centers = 2)
+true = c(rep(1,20), rep(2,20), rep(3,20))
+table(res$cluster, true_class)
+
+
+#e   #k=4
+res = kmeans(X, centers = 4)
+true = c(rep(1,20), rep(2,20), rep(3,20))
+table(res$cluster, true_class)
+
+
+#f  #1,2번째PCA에 대해 clustering
+res = kmeans(X.pca[,1:2], centers = 3)
+true = c(rep(1,20), rep(2,20), rep(3,20))
+table(res$cluster, true_class)
+
+#g
+res = kmeans(scale(X), centers = 3)
+true = c(rep(1,20), rep(2,20), rep(3,20))
+table(res$cluster, true_class)
+# b가 good 
+
+```
