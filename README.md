@@ -15,7 +15,7 @@
 | 과목명 | 학습 내용 | 기타 |
 |:--------:|:--------:|:--------:|
 | 이론통계학2 | 통계학 이론을 데이터에 적용 및 해석 | 최종 결과를 Shiny App 개발 |
-| [기계학습](https://github.com/jeeyeonLIM/graduate_course/tree/master/Machine%20Learning) | 머신러닝 이론 학습 및 데이터에 적용 및 최신 연구 동향 파악(CNN,GAN) | Final:ML 모델 적합 및 비교 |
+| [기계학습](https://github.com/jeeyeonLIM/graduate_course/tree/master/Machine%20Learning) | 머신러닝 이론 학습 및 최신 연구 동향 파악(CNN,GAN) | Final:ML 모델 적합 및 비교 |
 | [금융공학](https://github.com/jeeyeonLIM/graduate_course/tree/master/Financial%20engineering) | 딥러닝이론 학습(CNN,RNN,LSTM 등) 및 DJI 주가예측 | 중간발표 Kaggle Doodle Compitition |
 | [임상자료분석](https://github.com/jeeyeonLIM/graduate_course/tree/master/Statistical%20data%20analysis%20of%20clinical%20trials) | 임상 자료를 바탕으로 통계분석(R,SAS) | R,SAS 결과비교 및 해석 |
 
