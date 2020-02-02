@@ -1,7 +1,7 @@
 # Graduate Course
 
 
-> ### 1학기 
+> ### 1학기 (2018.03 ~ 2018.06)
 
 | 과목명 | 학습 내용 | 기타 |
 |:--------:|:--------:|:--------:|
@@ -10,7 +10,7 @@
 | 회귀분석 | 회귀분석 시 필요한 이론 증명 및  |  |
 
 
-> ### 2학기
+> ### 2학기 (2018.09 ~ 2018.12)
 
 | 과목명 | 학습 내용 | 기타 |
 |:--------:|:--------:|:--------:|
@@ -19,7 +19,7 @@
 | [금융공학](https://github.com/jeeyeonLIM/graduate_course/tree/master/Financial%20engineering) | 딥러닝이론 학습(CNN,RNN,LSTM 등) 및 DJI 주가예측 | 중간발표 Kaggle Doodle Compitition |
 | [임상자료분석](https://github.com/jeeyeonLIM/graduate_course/tree/master/Statistical%20data%20analysis%20of%20clinical%20trials) | 임상 자료를 바탕으로 통계분석(R,SAS) | R,SAS 결과비교 및 해석 |
 
-> ### 3학기 
+> ### 3학기 (2019.03 ~ 2019.06)
 
 | 과목명 | 학습 내용 | 기타 |
 |:--------:|:--------:|:--------:|
