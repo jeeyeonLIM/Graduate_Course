@@ -19,6 +19,18 @@
 | [금융공학](https://github.com/jeeyeonLIM/graduate_course/tree/master/Financial%20engineering) | 딥러닝이론 학습(CNN,RNN,LSTM 등) 및 DJI 주가예측 | 중간발표 Kaggle Doodle Compitition |
 | [임상자료분석](https://github.com/jeeyeonLIM/graduate_course/tree/master/Statistical%20data%20analysis%20of%20clinical%20trials) | 임상 자료를 바탕으로 통계분석(R,SAS) | R,SAS 결과비교 및 해석 |
 
+#### 이론통계학2
+ Project # 1 Diffusion Model을 이용한 수요예측       
+ Project # 2 한도(Limit)에 따른 손해보험료 산정
+ Project # 3 생명표를 이용한 생명보험-연금 산정
+ Project # 4  Black-Scholes Option 가격 산정
+ Project # 5  Optimal Portfolio 계산 및 수익률 비교 
+ Project # 6  GLM( Generalized Linear Models) 이용한 자동차보험료 산정
+ Project # 7  생명보험 해지방지 CRM _어떤type고객이 해지할것인지
+ Project # 8  GLM,GAM,SVM,RF / Cox PHM 회귀모형을 이용한 기업부도예측 
+ Project # 9  Cox PHM, ALT 모형을 이용한 심장병 발생예측 
+ 
+ 
 > ### 3학기 (2019.03 ~ 2019.06)
 
 | 과목명 | 학습 내용 | 기타 |
